@@ -796,7 +796,7 @@ C_Tensor * fftWeights(Tensor * W, int output_channels)
 		/***************** PADDING OF WEIGHTS *********************/
 
 		//pad the weights such that its total length ==  tile_size
-		pad_size =  fft->tile_size  - currFilter->size[1]
+		int pad_size =  fft->tile_size  - currFilter->size[1];
 		cout<<"2"<<endl;
 		currFilter_padded[filters].allocate(currFilter->size[0], currFilter->size[1] + pad_size,\
 			currFilter->size[2] + pad_size);
