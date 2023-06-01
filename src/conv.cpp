@@ -833,25 +833,12 @@ C_Tensor * fftWeights(Tensor * W, int output_channels)
 					//cout<<"8"<<endl;
                 }
             }
+			
+			// Flip the matrix and store it in temp tensor
+			flip_Matrix( &currFilter_padded[filters], &temp[filters], i );
+			// Perform 2D FFT and store result in U_fft
+			fft2d( &temp[filters], &U_fft[filters] );
         }
-    	
-	
-	/*************** PADDING OF WEIGHTS ENDS *********************/
-	
-		//Perform FFT on padded weights:	
-		for(int i=0; i < currFilter->size[0]; i++ ){
-
-    	    // Flip the matrix and store it in temp tensor
-			cout<<"9"<<endl;
-    	    flip_Matrix( &currFilter_padded[filters], &temp[filters], i );
-			cout<<"10"<<endl;
-			//cout<<"3"<<endl;
-
-    	    // Perform 2D FFT and store result in U_fft
-    	    fft2d( &temp[filters], &U_fft[filters] );
-			cout<<"11"<<endl;
-			//cout<<"4"<<endl;
-		}
 	
 	}
     return U_fft;
