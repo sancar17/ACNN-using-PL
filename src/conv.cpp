@@ -15,26 +15,30 @@ using namespace std;
  */
 void flip_Matrix(Tensor * W_in, C_Tensor * W_out, int c)
 {
-	cout<<"a"<<endl;
+	//cout<<"a"<<endl;
 	int k_width = W_in->size[1];
-	cout<<"b"<<endl;
+	//cout<<"b"<<endl;
 	int upper_lim = k_width/2 + k_width%2;
-	cout<<"c"<<endl;
+	//cout<<"c"<<endl;
 	int extra = -1 + k_width%2;
-	cout<<"d"<<endl;
+	//cout<<"d"<<endl;
 	for(int i =-k_width/2; i < upper_lim; i++){
 		for(int j =-k_width/2; j<upper_lim; j++){
-			cout<<"e"<<endl;
-			cout<<"i: "<<i<<" j: "<<j<<endl;
-			cout<<"i+k_width/2: "<<i+k_width/2<<endl;
-			cout<<(*W_out)[0]<<endl;
-			cout<<(*W_out)[0][i+k_width/2]<<endl;
-			cout<<(*W_out)[0][i+k_width/2][j+k_width/2]<<endl;
+			//cout<<"e"<<endl;
+			//cout<<"i: "<<i<<" j: "<<j<<endl;
+			//cout<<"i+k_width/2: "<<i+k_width/2<<endl;
+			//cout<<(*W_out)[0]<<endl;
+			//cout<<(*W_out)[0][i+k_width/2]<<endl;
+			//cout<<(*W_out)[0][i+k_width/2][j+k_width/2]<<endl;
 
 			(*W_out)[0][i+k_width/2][j+k_width/2].real( 
 				(*W_in)[c][-i + k_width/2 + extra][-j + k_width/2 + extra]);
+
+			
 		}
 	}
+
+	//cout<<"flip done"<<endl;
 }
 
 /* You can experiment with these as well */
@@ -777,13 +781,16 @@ void convWinograd(Tensor * X, Tensor * U_wino , Tensor * B, Tensor * Z, int k_si
  */
 C_Tensor * fftWeights(Tensor * W, int output_channels)
 {
+	
+	cout<<"weights started"<<endl;
 	const FFT_STRUCT* fft = getFFT(W->size[1]);
 
 	fft->overlap; fft->tile_size; fft->tile_stride;
-	C_Tensor *U_fft = new C_Tensor(output_channels, fft->tile_size, fft->tile_size);
-	C_Tensor *temp = new C_Tensor(output_channels, fft->tile_size, fft->tile_size);
 	
 	Tensor* currFilter = NULL;
+	C_Tensor* temp = new C_Tensor[output_channels];
+	C_Tensor* temp2 = new C_Tensor[output_channels];
+	C_Tensor* U_fft = new C_Tensor[output_channels];
 	Tensor* currFilter_padded = new Tensor[output_channels];
 	
 	for (size_t filters = 0; filters < output_channels; filters++)
@@ -791,16 +798,16 @@ C_Tensor * fftWeights(Tensor * W, int output_channels)
 		cout<<"output channels: "<< output_channels<<endl;
 		cout<<	"filters :" << filters << endl;
 		currFilter  = &W[filters];
-		cout<<"1"<<endl;
+		//cout<<"1"<<endl;
 
 		/***************** PADDING OF WEIGHTS *********************/
 
 		//pad the weights such that its total length ==  tile_size
 		int pad_size =  fft->tile_size  - currFilter->size[1];
-		cout<<"2"<<endl;
+		//cout<<"2"<<endl;
 		currFilter_padded[filters].allocate(currFilter->size[0], currFilter->size[1] + pad_size,\
 			currFilter->size[2] + pad_size);
-		cout<<"3"<<endl;
+		//cout<<"3"<<endl;
 	
 		// Copy the content from W to currFilter_padded
         for (size_t i = 0; i < currFilter->size[0]; i++)
@@ -817,7 +824,7 @@ C_Tensor * fftWeights(Tensor * W, int output_channels)
             }
         }
 
-		cout<<"6"<<endl;
+		//cout<<"6"<<endl;
         
         // Pad the extra size with zeros
         for (size_t i = 0; i < currFilter->size[0]; i++)
@@ -833,14 +840,30 @@ C_Tensor * fftWeights(Tensor * W, int output_channels)
 					//cout<<"8"<<endl;
                 }
             }
-			
-			// Flip the matrix and store it in temp tensor
-			flip_Matrix( &currFilter_padded[filters], &temp[filters], i );
-			// Perform 2D FFT and store result in U_fft
-			fft2d( &temp[filters], &U_fft[filters] );
         }
+
+		// Flip the matrix and store it in temp tensor
+		U_fft[filters].allocate(currFilter->size[0], fft->tile_size, fft->tile_size);
+		temp[filters].allocate(1, fft->tile_size, fft->tile_size);
+		temp2[filters].allocate(1, fft->tile_size, fft->tile_size);
+
+		for (int c=0; c<W->size[0]; c++){
+
+			flip_Matrix( &currFilter_padded[filters], &temp[filters], c );
+			// Perform 2D FFT and store result in U_fft
+		}
+
+		for (int p=0; p<W->size[0]; p++){
+			fft2d( &temp[filters], &temp2[filters]);
+			
+			U_fft[filters].data[p] = temp2[filters].data[0];
+		}
+
+		cout<<"2d performed"<<endl;
 	
 	}
+	
+	cout<<"weights ended"<<endl;
     return U_fft;
 
 }
