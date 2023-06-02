@@ -93,7 +93,7 @@ void timeConv(uint32_t input_channels, uint32_t input_width, uint32_t kernel_siz
 		}
 		auto start = mtick();
 		for(int i =0; i < N ; i++){
-			convWinograd(&(X[i]),U[i],&(B[i]),&Z,W->size[2]);
+			convWinograd(&(X[i]),U[i],&(B[i]),&Z,W->size[2] );
 		}
 		total_time = mtock(start);
 		for(int i =0 ; i < N ; i++)
@@ -116,7 +116,10 @@ void testConv(const char * infile,int select)
 	Tensor X,R,B;
 	printf("------------------------------\n");
 	printf("Testing Convolutional Layer...\n");
+		int cnt  = 0;
+
 	while(1){
+		cnt++;
 		Tensor * W = readConv(&X,&R,&B,f);
 		if(W == NULL)
 			break;

@@ -544,11 +544,11 @@ Tensor * winoTile(Tensor * W, int output_channels, WINOGRAD_STRUCT* wino, int ro
 	//return transW;
 }
 
-int check_decimal(float value)
+float check_decimal(float value)
 {
     //result ... initialize output function. 
 		//correct #tile_for_feature_map
-	int result = 0;
+	float result = 0;
 	//fractionalPart ... gives the value of the fractional part of the float.
     float fractionalPart = std::fmod(value, 1.0);
 
@@ -602,8 +602,8 @@ void convWinograd(Tensor * X, Tensor * U_wino , Tensor * B, Tensor * Z, int k_si
 
 	//numTilesRows ... total amount of tiles. #tile
 		//improvement to numTilesRows_unchecked ... only partly considered tiles by the area of the input feature map gets fully considered now.
-	int numTilesRows = check_decimal(numTilesRows_unchecked);
-	int numTilesCols = check_decimal(numTilesCols_unchecked);
+	float numTilesRows = check_decimal(numTilesRows_unchecked);
+	float numTilesCols = check_decimal(numTilesCols_unchecked);
 	
 	//DEBUGGING HELP
 
@@ -697,7 +697,7 @@ void convWinograd(Tensor * X, Tensor * U_wino , Tensor * B, Tensor * Z, int k_si
 
 
 	// Loop over the tiles
-
+ 
 	//#############################################
 	//extract the tiles from the feature maps 
 	//#############################################
@@ -840,7 +840,7 @@ void convWinograd(Tensor * X, Tensor * U_wino , Tensor * B, Tensor * Z, int k_si
 					}
 				}
 			}
-			//delete [] tile_trans;
+			delete [] tile_trans;
 
 			//#########################################################################################
 			//Compute the sums over all individual weights. Store sums as feature maps in tensore m_sum
@@ -860,6 +860,7 @@ void convWinograd(Tensor * X, Tensor * U_wino , Tensor * B, Tensor * Z, int k_si
 				}
 			}
 
+			delete [] m;
 
 			//####################################
 			//Untransformed output tile m -> ATmA
@@ -924,9 +925,10 @@ void convWinograd(Tensor * X, Tensor * U_wino , Tensor * B, Tensor * Z, int k_si
 					}
 				}	
 			}
+			//delete [] m_trans;
 		}	
 	}
-	//delete tile;
+	delete tile;
 	//#############################################
 	//Add B to output Z (Winograd = WX, not WX + B)
 	//#############################################
