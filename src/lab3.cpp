@@ -130,12 +130,12 @@ void testConv(const char * infile,int select)
 		else if(select == 1){
 			C_Tensor * U = fftWeights(W,Z.size[0]);
 			convFFT(&(X),U,&(B),&(Z),W->size[2]);
-			delete U;
+			delete [] U;
 		}
 		else if(select == 2){
 			Tensor * U = winoWeights(W,R.size[0]);
 			convWinograd(&X,U,&B,&Z,W->size[2]);
-			delete U;
+			delete [] U;
 		}
 		else
 			printf("Not implemented %d!\n",select);
