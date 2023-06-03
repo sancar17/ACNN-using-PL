@@ -935,6 +935,7 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 	//CurrWeight ... Z->size[0] x different weights in U_fft. For each weight-Tensor own iteration. 
 	for(int CurrWeight = 0; CurrWeight < Z->size[0]; CurrWeight++){
 		// Loop over the tiles
+			cout<<"cur weight"<<CurrWeight<<endl;
 
 		//#############################################
 		//extract the tiles from the feature maps 
@@ -1065,11 +1066,13 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 					}
 				}
 
-				delete [] temp_fft;
-				delete [] tile2d;
+				delete temp_fft;
+				delete tile2d;
+				delete [] tile_fft;
+				
 
 	
-				//cout<<"performed fft on tiles"<<endl;
+				/*//cout<<"performed fft on tiles"<<endl;
 
 				//numFeatureMaps ... amount feature maps of transformed tiles
 				//numRows ... amount rows transformed tiles
@@ -1133,9 +1136,9 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 	// Element-wise mult with weight -> temp
 	// Add up tiles from diff input channels -> temp_output
 	// inverse fft on temp_output
-	// Store N − (M − 1) values in the real output matrix (Discard first M − 1)
+	// Store N − (M − 1) values in the real output matrix (Discard first M − 1)*/
 
-}
+}}} delete tile;}
 
 
 /*--------------------------------------- Basic ------------------------------------------*/
