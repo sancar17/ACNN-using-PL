@@ -1,4 +1,6 @@
 #include "fft.h"
+#include <iostream>
+using namespace std;
 
 void C_Tensor::allocate(uint32_t dim_z, uint32_t dim_y, uint32_t dim_x)
 {
@@ -40,34 +42,47 @@ void fft(C_FLOAT * x_in, C_FLOAT * X_out, int N)
 	//recursive implementation
 	//X[k] = even[k] + twiddle factor * odd[k]
 
+    //cout<<"1"<<endl;
+
 	if(N == 1) {
         // base of the recursion
+        //cout<<"2"<<endl;
         X_out[0] = x_in[0];
     } else {
         // Allocate temporary arrays
+        //cout<<"3"<<endl;
         C_FLOAT* x_even = new C_FLOAT[N/2];
         C_FLOAT* x_odd = new C_FLOAT[N/2];
         C_FLOAT* X_even = new C_FLOAT[N/2];
         C_FLOAT* X_odd = new C_FLOAT[N/2];
+        //cout<<"4"<<endl;
 
         // Split even and odd elements of the input
+        //cout<<"taking x_in"<<endl;
         for(int i = 0; i < N/2; i++) {
+            
             x_even[i] = x_in[2*i];
             x_odd[i] = x_in[2*i + 1];
+            
         }
+        //cout<<"xin no pronlem"<<endl;
 
         // Recursive FFT call for even and odd inputs
         fft(x_even, X_even, N/2);
         fft(x_odd, X_odd, N/2);
-
+        //cout<<"using xout"<<endl;
         //X[k] = even[k] + twiddle factor * odd[k]
         for(int k = 0; k < N/2; k++) {
 
             C_FLOAT twiddle = std::exp(C_FLOAT(0, -2.0 * M_PI / N * k));
 			C_FLOAT t = twiddle * X_odd[k];
+            
             X_out[k] = X_even[k] + t;  // For the first half
             X_out[k + N/2] = X_even[k] - t;  // For the second half
+            
         }
+
+        //cout<<"xout no problem"<<endl;
 
         // Deallocate memory
         delete[] x_even;
@@ -130,27 +145,34 @@ void fft2d(C_Tensor * x_in, C_Tensor * X_f)
     int dim_y = x_in->size[1];
     int dim_x = x_in->size[2];
 
+    //cout<<"read x_in"<<endl;
+    //cout<<dim_z<<endl;
+    //cout<<dim_y<<endl;
+    //cout<<dim_x<<endl;
+    //cout<<x_in->data[0][0]<<endl;
     // Perform FFT row-wise
-    for (int z = 0; z < dim_z; z++) {
-        for (int y = 0; y < dim_y; y++) {
-            fft(x_in->data[z][y], X_f->data[z][y], dim_x);
-        }
+    //cout<<"row wise fft"<<endl;
+    for (int y = 0; y < dim_y; y++) {
+        
+        fft(x_in->data[0][y], X_f->data[0][y], dim_x);
     }
+    
 
     // Perform FFT column-wise
     C_FLOAT *col_in = new C_FLOAT[dim_y];
     C_FLOAT *col_out = new C_FLOAT[dim_y];
-    for (int z = 0; z < dim_z; z++) {
-        for (int x = 0; x < dim_x; x++) {
-            for (int y = 0; y < dim_y; y++) {
-                col_in[y] = X_f->data[z][y][x];
-            }
-            fft(col_in, col_out, dim_y);
-            for (int y = 0; y < dim_y; y++) {
-                X_f->data[z][y][x] = col_out[y];
-            }
+    //cout<<"column wise fft"<<endl;
+    for (int x = 0; x < dim_x; x++) {
+        
+        for (int y = 0; y < dim_y; y++) {
+            col_in[y] = X_f->data[0][y][x];
+        }
+        fft(col_in, col_out, dim_y);
+        for (int y = 0; y < dim_y; y++) {
+            X_f->data[0][y][x] = col_out[y];
         }
     }
+    
 
     delete[] col_in;
     delete[] col_out;
@@ -159,34 +181,34 @@ void fft2d(C_Tensor * x_in, C_Tensor * X_f)
 //Same as FFT, just use IFFT instead
 void ifft2d(C_Tensor * X_f , C_Tensor * x_out)
 {
-	int dim_z = X_f->size[0];
+	int z = 0;
     int dim_y = X_f->size[1];
     int dim_x = X_f->size[2];
 
     // Perform IFFT row-wise
-    for (int z = 0; z < dim_z; z++) {
-        for (int y = 0; y < dim_y; y++) {
-            ifft(X_f->data[z][y], x_out->data[z][y], dim_x);
-        }
+
+    for (int y = 0; y < dim_y; y++) {
+        ifft(X_f->data[z][y], x_out->data[z][y], dim_x);
     }
+    
 
     // Perform IFFT column-wise
     C_FLOAT *col_in = new C_FLOAT[dim_y];
     C_FLOAT *col_out = new C_FLOAT[dim_y];
-    for (int z = 0; z < dim_z; z++) {
-        for (int x = 0; x < dim_x; x++) {
-            for (int y = 0; y < dim_y; y++) {
-                col_in[y] = x_out->data[z][y][x];
-            }
-            ifft(col_in, col_out, dim_y);
-            for (int y = 0; y < dim_y; y++) {
-                x_out->data[z][y][x] = col_out[y];
-            }
+    for (int x = 0; x < dim_x; x++) {
+        for (int y = 0; y < dim_y; y++) {
+            col_in[y] = x_out->data[z][y][x];
+        }
+        ifft(col_in, col_out, dim_y);
+        for (int y = 0; y < dim_y; y++) {
+            x_out->data[z][y][x] = col_out[y];
         }
     }
+    
 
     delete[] col_in;
     delete[] col_out;
 }
+
 
 
