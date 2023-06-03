@@ -783,6 +783,7 @@ C_Tensor * fftWeights(Tensor * W, int output_channels)
 {
 	
 	cout<<"weights started"<<endl;
+	//cout<<"w "<< W->size[0] <<" "<< W->size[1]<<" "<<W->size[2]<<endl;
 	const FFT_STRUCT* fft = getFFT(W->size[1]);
 
 	fft->overlap; fft->tile_size; fft->tile_stride;
@@ -792,13 +793,26 @@ C_Tensor * fftWeights(Tensor * W, int output_channels)
 	C_Tensor* temp2 = new C_Tensor[output_channels];
 	C_Tensor* U_fft = new C_Tensor[output_channels];
 	Tensor* currFilter_padded = new Tensor[output_channels];
+
+	
 	
 	for (size_t filters = 0; filters < output_channels; filters++)
 	{
-		cout<<"output channels: "<< output_channels<<endl;
-		cout<<	"filters :" << filters << endl;
+		//cout<<"output channels: "<< output_channels<<endl;
+		//cout<<	"filters :" << filters << endl;
 		currFilter  = &W[filters];
 		//cout<<"1"<<endl;
+
+		/*cout<<"original: "<<endl;
+		for(int i = 0; i<W[filters].size[0]; i++){
+			for(int j = 0; j<W[filters].size[1]; j++){
+				for(int k = 0; k<W[filters].size[2]; k++){
+					cout<<W[filters].data[i][j][k]<<" ";
+				}
+				cout<<endl;
+			}
+			cout<<endl;
+		}*/
 
 		/***************** PADDING OF WEIGHTS *********************/
 
@@ -819,6 +833,7 @@ C_Tensor * fftWeights(Tensor * W, int output_channels)
 					//cout<<"i: "<< i << " j: "<<j<<" k: "<<k<<endl;
 					//cout<<"4"<<endl;
                     currFilter_padded[filters].data[i][j][k] = currFilter->data[i][j][k];
+					//cout<<"original versions: "<<currFilter_padded[filters].data[i][j][k]<<endl;
 					//cout<<"5"<<endl;
                 }
             }
@@ -827,7 +842,7 @@ C_Tensor * fftWeights(Tensor * W, int output_channels)
 		//cout<<"6"<<endl;
         
         // Pad the extra size with zeros
-        for (size_t i = 0; i < currFilter->size[0]; i++)
+        /*for (size_t i = 0; i < currFilter->size[0]; i++)
         {
             for (size_t j = currFilter->size[1]; j < currFilter_padded[filters].size[1]; j++)
             {
@@ -840,7 +855,22 @@ C_Tensor * fftWeights(Tensor * W, int output_channels)
 					//cout<<"8"<<endl;
                 }
             }
+        }*/
+
+		for (size_t i = 0; i < currFilter->size[0]; i++)
+        {
+            for (size_t j = 0; j < currFilter_padded[filters].size[1]; j++)
+            {
+                for (size_t k = 0; k < currFilter_padded[filters].size[2]; k++)
+                {
+					//cout<<"i: "<< i << " j: "<<j<<" k: "<<k<<endl;
+					//cout<<"4"<<endl;
+					//cout<<"after padding: "<<currFilter_padded[filters].data[i][j][k]<<endl;
+					//cout<<"5"<<endl;
+                }
+            }
         }
+
 
 		// Flip the matrix and store it in temp tensor
 		U_fft[filters].allocate(currFilter->size[0], fft->tile_size, fft->tile_size);
@@ -853,17 +883,54 @@ C_Tensor * fftWeights(Tensor * W, int output_channels)
 			// Perform 2D FFT and store result in U_fft
 		}
 
-		for (int p=0; p<W->size[0]; p++){
-			fft2d( &temp[filters], &temp2[filters]);
-			
-			U_fft[filters].data[p] = temp2[filters].data[0];
-		}
+		cout<<"after flipping: ";
+		for (size_t i = 0; i < currFilter->size[0]; i++)
+        {
+            for (size_t j = 0; j < currFilter_padded[filters].size[1]; j++)
+            {
+                for (size_t k = 0; k < currFilter_padded[filters].size[2]; k++)
+                {
+					//cout<<"i: "<< i << " j: "<<j<<" k: "<<k<<endl;
+					//cout<<"4"<<endl;
+					//cout<<temp[filters].data[i][j][k]<<" ";
+					//cout<<"5"<<endl;
+                }
+				//cout<<endl;
+            }
+			//cout<<endl;
+        }
 
-		cout<<"2d performed"<<endl;
-	
+		cout<<"flipped"<<endl;
+		fft2d( &temp[filters], &temp2[filters]);
+		cout<<"fft done"<<endl;
+
+		cout<<"After fft: "<<endl;
+		for (int p=0; p<W->size[0]; p++){
+            for (size_t j = 0; j < fft->tile_size; j++)
+            {
+                for (size_t k = 0; k < fft->tile_size; k++)
+                {
+					//cout<<"i: "<< p << " j: "<<j<<" k: "<<k<<endl;
+					
+                    U_fft[filters].data[p][j][k] = temp2[filters].data[0][j][k];
+					//cout<<U_fft[filters].data[p][j][k]<<" ";
+                }
+
+				//cout<<endl;
+            }
+
+			//cout<<endl;
+        }
 	}
+
+		//cout<<"2d performed"<<endl;
 	
 	cout<<"weights ended"<<endl;
+	//exit(0);
+	delete [] temp;
+	delete [] temp2;
+	delete[] currFilter_padded;
+	//exit(0);
     return U_fft;
 
 }
@@ -882,83 +949,291 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
         Tensor * Z, int k_size)
 {
 
-	/*//check dim z and x
+	// Pick tile size
     const FFT_STRUCT *fft = getFFT(k_size);
-    int dim_z = X->size[0];
-    int dim_y = X->size[1];
-    int dim_x = X->size[2];
+	int pad_amount = 0; //start_tile + tile_size - end_tile
+    int tile_size = fft->tile_size; // Size of tile including overlap (N)
+	int overlap = fft->overlap; // Size of overlap = w.x - 1 (M-1)
+	int tile_stride = fft->tile_stride; // Size of tile without overlap (N-(M-1))
 
-	cout<<"1"<<endl;
+	cout<<"tile size: "<<tile_size<<endl;
+	cout<<"overlap: "<<overlap<<endl;
+	cout<<"tile stride: "<<tile_stride<<endl;
 
-    C_Tensor *X_pad = new C_Tensor(dim_z, fft->tile_size, fft->tile_size);
-    C_Tensor *X_fft = new C_Tensor(dim_z, fft->tile_size, fft->tile_size);
+	int num_input_channels = X->size[0];
+    int input_height = X->size[1];
+    int input_width = X->size[2];
 
-	cout<<"2"<<endl;
+	//cout<<"num input channels: "<<num_input_channels<<endl;
+	//cout<<"input hxw: "<<input_height<<" "<<input_width<<endl;
 
-    for(int i=0; i<dim_z; i++) {
-        // Copy to temp tensor X_pad and zero pad
-        for(int j=0; j<dim_y; j++) {
-            for(int k=0; k<dim_x; k++) {
-                if (j < dim_y && k < dim_x) {
-					cout<<"3"<<endl;
-                    (*X_pad)[i][j][k].real((*X)[i][j][k]);
-					cout<<"4"<<endl;
-                } else {
-					cout<<"5"<<endl;
-                    (*X_pad)[i][j][k].real(0.0);
-					cout<<"6"<<endl;
-                }
-            }
-        }
-        // Perform FFT on each input channel
-		cout<<"7"<<endl;
-        fft2d(X_pad, X_fft);
-		cout<<"8"<<endl;
-    }
+    int num_output_channels = Z->size[0];
+    int output_height = Z->size[1];
+    int output_width = Z->size[2];
 
-    // Perform convolution in frequency domain for each output channel
-    for(int i=0; i<U_fft->size[0]; i++) {
-        for(int j=0; j<fft->tile_size; j++) {
-            for(int k=0; k<fft->tile_size; k++) {
-				cout<<"9"<<endl;
-				//check tile size etc
-                (*X_fft)[i][j][k] *= (*U_fft)[i][j][k];
-				cout<<"10"<<endl;
-            }
-        }
+	//cout<<"num output channels: "<<num_output_channels<<endl;
+	//cout<<"output hxw: "<<output_height<<" "<<output_width<<endl;
 
-		cout<<"11"<<endl;
-        // Perform IFFT on the result
-        ifft2d(X_fft, X_pad);
-		cout<<"12"<<endl;
-        
-		cout<<"Z:"<<Z->size[0]<<" "<<Z->size[1]<<" "<<Z->size[2]<<endl;
-		cout<<"X_pad:"<<X_pad->size[0]<<" "<<X_pad->size[1]<<" "<<X_pad->size[2]<<endl;
-		cout<<"B:"<<B->size[0]<<" "<<B->size[1]<<" "<<B->size[2]<<endl;
-        // Copy valid values to output tensor and add bias
-        for(int j=0; j<dim_y; j++) {
-            for(int k=0; k<dim_x; k++) {
-				cout<<"13"<<endl;
-				cout<<"i:"<<i<<endl;
-				cout<<"j:"<<j<<endl;
-				cout<<"k:"<<k<<endl;
-				cout<<"Z: "<< (*Z)[i][j][k] <<endl;
-				cout<<"X_pad: "<< (*X_pad)[i][j][k] <<endl;
-				//cout<<"B: "<< (*B)[i][j][k] <<endl;
+	//create input tiles:
+	float numTilesRows_unchecked = ((static_cast<float>(X->size[1]) - static_cast<float>(tile_size)) / static_cast<float>(tile_stride)) +1;
+    float numTilesCols_unchecked = ((static_cast<float>(X->size[2]) - static_cast<float>(tile_size)) / static_cast<float>(tile_stride)) +1;
 
-                (*Z)[i][j][k] = (*X_pad)[i][j][k].real() + (*B)[0][0][0];
-				cout<<"14"<<endl;
-            }
-        }
-    }
+	//numTilesRows ... total amount of tiles. #tile
+	//improvement to numTilesRows_unchecked ... only partly considered tiles by the area of the input feature map gets fully considered now.
+	int numTilesRows = check_decimal(numTilesRows_unchecked);
+	int numTilesCols = check_decimal(numTilesCols_unchecked);
 
-    // Clean up
-	cout<<"15"<<endl;
-    delete X_pad;
-	cout<<"16"<<endl;
-    delete X_fft;
-	cout<<"17"<<endl;*/
-}
+	//cout<<"num tile rows: "<<numTilesRows<<endl;
+	//cout<<"num tile cols: "<<numTilesCols<<endl;
+
+	C_Tensor *tile = new C_Tensor(X->size[0], tile_size, tile_size);
+
+	//CurrWeight ... Z->size[0] x different weights in U_fft. For each weight-Tensor own iteration. 
+	for(int CurrWeight = 0; CurrWeight < Z->size[0]; CurrWeight++){
+		// Loop over the tiles
+			//cout<<"cur weight"<<CurrWeight<<endl;
+
+		//#############################################
+		//extract the tiles from the feature maps 
+		//#############################################
+
+		for (int tileRow = 0; tileRow < numTilesRows; tileRow++) {
+			for (int tileCol = 0; tileCol < numTilesCols; tileCol++) {
+				
+
+				//#################################################################
+				//determine starting point (startRow, startCol) of current tile 
+				//#################################################################
+				
+				// Compute the starting and ending indices for the current tile
+				//startRow ... gets #1 element coordinates (pixel-bases) of current tile
+					//Subnote 1: coordinate of input feature map
+					//Subnote 2: tileRow are tile-stride-based coordinates for #1 element of current tile
+					//Subnote 3: tile_stride is used to get the #1 element tile. tile_size is used to get all other elements of the tile, which is positioned at the determined position.
+				int startRow = tileRow * fft->tile_stride;
+				int endRow = startRow + fft->tile_size;
+				int startCol = tileCol * fft->tile_stride;
+				int endCol = startCol + fft->tile_size;
+				// Check: do the area of the current tile stratches over the border of the current input feature map?
+					//Subnote 1: endRow, endCol ... both determined out of startRow, startCol. startRow, startCol both elements feature map. endRow, endCol do not must be elements feature map
+					//Subnote 2: if endRow, endCol reach over boundaries - the value gets set to the biggest dim value e.g., X->size[1] for Row.
+				if (endRow > X->size[1]) endRow = X->size[1];
+				if (endCol > X->size[2]) endCol = X->size[2];
+
+
+				//############################################################################################################
+				//extract the tiles from the feature maps + for one starting point (startRow, startCol) over all feature maps 
+				//############################################################################################################
+				
+				// Loop over the feature maps
+				for (int featureMap = 0; featureMap < X->size[0]; featureMap++) {
+
+					//##########################################################
+					//copy values from input feature map into tile ... or set 0
+					//##########################################################
+
+						//##############
+						//normal values
+						//##############
+
+					// Process the current tile for the current feature map
+						//Subnote 1: tile and input have same amount feature maps
+						//Subnote 2: #1 go into feature map. #2 copy from inpute into tile.
+						//Subnote 3: (startRow, startCol) ... starting point of each copy-operation (per feature map)
+					for (int row = startRow; row < endRow; row++) {
+						for (int col = startCol; col < endCol; col++) {
+							//row = [startRow, endRow], col = [startCol, endCol]
+								//Subnote 1: startRow, endRow, row ... all are coordinate based on feature image.
+								//Subnote 2: tile coordinates smaller input coordinate X. Therefore row-startRow, col-startCol
+								//Subnote 3: row >= startRow, col >=startCol
+							tile->data[featureMap][row-startRow][col-startCol] = X->data[featureMap][row][col];
+						}
+					}
+					
+						//##############
+						//0 values
+						//##############
+
+					//execute only, if #1 and #2 definition endRow and endCol are unqual (!=)
+						//Subnote 1: loop fills remaining unfilled coordinates with 0
+						//Subnote 2: tile is a tensor with a defined amount of rows and columns.
+						//Subnote 3: if endRow != startRow+tile_size, some coordinates will be not filled after the first loop.
+					
+					if((endRow != (startRow + fft->tile_size))|| (endCol != (startCol + fft->tile_size))){
+						pad_amount = - endRow + startRow + fft->tile_size;
+						for (int row = 0; row < fft->tile_size; row++) {
+							for (int col = 0; col < fft->tile_size; col++) {
+								//Filling unfilled tile feature map areas with 0
+									//Subnote 1: endRow gets defined twice
+									//Subnote 2: #1 endRow = startRow + tile_size
+									//Subnote 3: #2 endRow = X->size[1] ... if #1 endRow > X->size[1]
+								if (row >= (endRow-startRow) || col >= (endRow-startRow)) {
+									tile->data[featureMap][row][col] = 0;
+								}
+							}
+						}
+					}
+
+				}
+
+				//#################################
+				//Transform input tile
+				//#################################
+				
+				//tile_untrans ... array of tensor. Contains all input feature map tiles.
+					//Subnote 1: Until now happend: 
+						//#1 ... defining used weights by choosing array of tensor W
+						//#2 ... defining currently considered starting point (startRow, startCol) of current tile 
+						//#3 ... defining area of the current tile. Based on (startRow, startCol) and tile-size
+						//#4 ... copy all values in the area of the input into the tile. All over all feature maps of the input into corresponding feature maps of the tile.
+					//Subnote 2: Transformation function winoTile wants Array of Tensors as input. 
+					//Subnote 3: Tile only tensor in array. output_size = 1.
+				int input_size = X->size[0]; 
+				C_Tensor *tile_fft = new C_Tensor[input_size];
+				C_Tensor *temp_fft = new C_Tensor[1];
+				C_Tensor *tile2d = new C_Tensor[1];
+
+				tile2d[0].allocate(1, fft->tile_size, fft->tile_size);
+				temp_fft[0].allocate(1, fft->tile_size, fft->tile_size);
+
+				//cout<<"start fft on tiles:"<<endl;
+				for(int c=0; c<X->size[0]; c++){
+					
+					tile_fft[c].allocate(X->size[0], fft->tile_size, fft->tile_size);
+					
+					
+					for(int j=0; j<fft->tile_size; j++){
+						for(int k=0; k<fft->tile_size; k++){
+							tile2d[0].data[0][j][k] = tile[0].data[c][j][k];
+				//cout<<"3"<<endl;
+						}
+					}
+
+					//cout<<" 1"<<endl;
+
+					fft2d(&tile2d[0], &temp_fft[0]);
+					//cout<<" 2"<<endl;
+					
+					for(int i=0; i<input_size; i++){
+						for(int j=0; j<fft->tile_size; j++){
+							for(int k=0; k<fft->tile_size; k++){
+								tile_fft[c].data[i][j][k] = temp_fft[0].data[0][j][k];
+					//cout<<"3"<<endl;
+							}
+						}
+					}
+				}
+
+				delete temp_fft;
+				delete tile2d;
+				
+
+	
+				//cout<<"performed fft on tiles"<<endl;
+
+				//numFeatureMaps ... amount feature maps of transformed tiles
+				//numRows ... amount rows transformed tiles
+				//numCols ... amount coloumns transformed tiles.
+				int numFeatureMaps =  tile_fft->size[0];
+				int numRows = tile_fft->size[1];
+				int numCols = tile_fft->size[2];
+				
+				//m ... result element-wise multiplication. Transformed m
+				//C_Tensor m(numFeatureMaps, numRows, numCols);
+				C_Tensor *m = new C_Tensor[1];
+				m[0].allocate(numFeatureMaps, numRows, numCols);
+
+				// Perform element-wise multiplication for each feature map
+				for (int featureMap = 0; featureMap < numFeatureMaps; featureMap++) {
+					for (int row = 0; row < numRows; row++) {
+						for (int col = 0; col < numCols; col++) {
+							// Perform element-wise multiplication between corresponding feature maps
+							m->data[featureMap][row][col].real(tile_fft->data[featureMap][row][col].real() * U_fft[CurrWeight].data[featureMap][row][col].real());
+						}
+					}
+				}
+
+				//############################################
+				//Add output tile feature maps for one weight
+				//############################################
+
+				//m_sum ... Tensor with one feature map. All feature maps of Tensor m get element wise summed together. 
+				C_Tensor *m_sum = new C_Tensor[1];
+				m_sum[0].allocate(1, numRows, numCols);
+				C_Tensor *ifft_sum = new C_Tensor[1];
+				ifft_sum[0].allocate(1, numRows, numCols);
+				//C_Tensor m_sum(1, numRows, numCols);
+				//C_Tensor ifft_sum(1, numRows, numCols);
+				//cout<<"sum parts started"<<endl;
+				//loop ... compute the sum over all layers
+				for (int row = 0; row < numRows; row++) {
+					for (int col = 0; col < numCols; col++) {
+						for (int featureMap = 0; featureMap < numFeatureMaps; featureMap++) {
+							// Accumulate the sum for each location
+							m_sum->data[0][row][col] += m->data[featureMap][row][col];
+							//inverse fft
+							
+						}
+					}
+				}
+				//cout<<"sum parts ended"<<endl;
+
+				ifft2d(&m_sum[0], &ifft_sum[0]);
+				cout<<"AAAA: "<<"ifft_sum data: "<<ifft_sum->data[0][0][0]<<endl;
+				//cout<<"ifft performed"<<endl;
+
+				C_Tensor * output_tile = new C_Tensor[1];
+				int row_size = endRow - pad_amount - startRow - overlap + 1;
+				int column_size = endCol - pad_amount - startCol - overlap + 1;
+				cout<<" sizes: "<<row_size<<" "<<column_size<<endl;
+				output_tile[0].allocate(1, row_size, column_size);
+
+				//remove parts and add bias
+				cout<<"remove parts started"<<endl;
+				cout<<pad_amount<<endl;
+				for(int rows = startRow+overlap; rows<=endRow - pad_amount; rows++){
+					for(int cols = startCol + overlap; cols<=endCol - pad_amount; cols++){
+						cout<<"rows cols: "<<rows<<" "<<cols<<" "<<endl;
+						cout<<"rows cols of output tile: "<<rows-startRow-overlap<<" "<<cols-startCol-overlap<<" "<<endl;
+						cout<<"ifft size: "<<ifft_sum->size[1]<<" "<< ifft_sum->size[2]<<endl;
+						//cout<<"data ifft: "<<ifft_sum->data[0][rows][cols]<<endl;
+						//cout<<"output tile: "<<output_tile[0].data[0][rows-startRow-overlap][cols-startCol-overlap]<<endl;
+						if(rows==8 && cols==2)
+							cout<<"ifft_sum data: "<<ifft_sum->data[0][rows][cols]<<endl;
+						output_tile[0].data[0][rows-startRow-overlap][cols-startCol-overlap].real(ifft_sum->data[0][rows][cols].real());
+
+					}
+				}
+				cout<<"remove parts ended"<<endl;
+
+				for(int i=0; i<output_tile->size[1]; i++){
+					for(int j=0; j>output_tile->size[2]; j++){
+						Z->data[CurrWeight][tile_size*tileRow+i][tile_size*tileCol+j] = output_tile[0].data[0][i][j].real();
+					}
+				}
+				
+				//delete [] tile_fft;
+				//delete [] output_tile;
+				
+			}
+		}
+	}
+
+	//loop ... add bias B to the CONV.
+	//channels output
+	for(int o=0; o < Z->size[0]; o++){
+		//height of channel in Z
+		for(int p = 0; p < Z->size[1]; p++){
+			//width in channel in Z
+			for(int q=0; q < Z->size[2]; q++){
+				Z->data[o][p][q] += (B->data[0][0][o]);
+			}	
+		}
+	}
+
+	delete tile;
+	
+	}
 
 
 /*--------------------------------------- Basic ------------------------------------------*/
@@ -1018,4 +1293,5 @@ void convBasic(Tensor * X, Tensor * W ,  Tensor * b, Tensor * Z)
             }
         }
     }
+	
 }
