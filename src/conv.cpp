@@ -856,15 +856,26 @@ C_Tensor * fftWeights(Tensor * W, int output_channels)
 
 		for (int p=0; p<W->size[0]; p++){
 			fft2d( &temp[filters], &temp2[filters]);
-			
-			U_fft[filters].data[p] = temp2[filters].data[0];
-		}
+
+            for (size_t j = 0; j < fft->tile_size; j++)
+            {
+                for (size_t k = 0; k < fft->tile_size; k++)
+                {
+					//cout<<"i: "<< p << " j: "<<j<<" k: "<<k<<endl;
+					//cout<<"4"<<endl;
+                    U_fft[filters].data[p][j][k] = temp2[filters].data[0][j][k];
+					//cout<<"5"<<endl;
+                }
+            }
+        }
+	}
 
 		//cout<<"2d performed"<<endl;
 	
-	}
-	
 	//cout<<"weights ended"<<endl;
+	delete [] temp;
+	delete [] temp2;
+	delete[] currFilter_padded;
     return U_fft;
 
 }
@@ -1031,17 +1042,32 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 					
 					tile_fft[c].allocate(X->size[0], fft->tile_size, fft->tile_size);
 					
-
-					tile2d[0].data[0] = tile->data[c];
+					
+					for(int j=0; j<fft->tile_size; j++){
+						for(int k=0; k<fft->tile_size; k++){
+							tile2d[0].data[0][j][k] = tile[0].data[c][j][k];
+				//cout<<"3"<<endl;
+						}
+					}
 
 					//cout<<" 1"<<endl;
 
 					fft2d(&tile2d[0], &temp_fft[0]);
 					//cout<<" 2"<<endl;
 					
-					tile_fft[c] = temp_fft[0];
+					for(int i=0; i<input_size; i++){
+						for(int j=0; j<fft->tile_size; j++){
+							for(int k=0; k<fft->tile_size; k++){
+								tile_fft[c].data[i][j][k] = temp_fft[0].data[0][j][k];
 					//cout<<"3"<<endl;
+							}
+						}
+					}
 				}
+
+				delete [] temp_fft;
+				delete [] tile2d;
+
 	
 				//cout<<"performed fft on tiles"<<endl;
 
