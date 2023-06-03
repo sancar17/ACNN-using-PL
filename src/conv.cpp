@@ -920,7 +920,6 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 	cout<<"num tile cols: "<<numTilesCols<<endl;
 
 	C_Tensor *tile = new C_Tensor(X->size[0], tile_size, tile_size);
-	C_Tensor *tile_fft = new C_Tensor(X->size[0], tile_size, tile_size);
 
 	//CurrWeight ... Z->size[0] x different weights in U_fft. For each weight-Tensor own iteration. 
 	for(int CurrWeight = 0; CurrWeight < Z->size[0]; CurrWeight++){
@@ -1019,14 +1018,32 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 						//#4 ... copy all values in the area of the input into the tile. All over all feature maps of the input into corresponding feature maps of the tile.
 					//Subnote 2: Transformation function winoTile wants Array of Tensors as input. 
 					//Subnote 3: Tile only tensor in array. output_size = 1.
-				int output_size = 1; 
-				C_Tensor *tile_fft = new C_Tensor[output_size];
-				cout<<"performing fft on tiles"<<endl;
-				for(int i =0; i < output_size; i++){
-					tile_fft[i].allocate(X->size[0], fft->tile_size, fft->tile_size);
-						fft2d(&tile[i], &tile_fft[i]);
-					}
-					cout<<"performed fft on tiles"<<endl;
+				int input_size = X->size[0]; 
+				C_Tensor *tile_fft = new C_Tensor[input_size];
+				C_Tensor *temp_fft = new C_Tensor[1];
+				C_Tensor *tile2d = new C_Tensor[1];
+
+				tile2d[0].allocate(1, fft->tile_size, fft->tile_size);
+				temp_fft[0].allocate(1, fft->tile_size, fft->tile_size);
+
+				//cout<<"start fft on tiles:"<<endl;
+				for(int c=0; c<X->size[0]; c++){
+					
+					tile_fft[c].allocate(X->size[0], fft->tile_size, fft->tile_size);
+					
+
+					tile2d[0].data[0] = tile->data[c];
+
+					//cout<<" 1"<<endl;
+
+					fft2d(&tile2d[0], &temp_fft[0]);
+					//cout<<" 2"<<endl;
+					
+					tile_fft[c] = temp_fft[0];
+					//cout<<"3"<<endl;
+				}
+	
+				//cout<<"performed fft on tiles"<<endl;
 
 				//numFeatureMaps ... amount feature maps of transformed tiles
 				//numRows ... amount rows transformed tiles
