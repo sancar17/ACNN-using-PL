@@ -901,22 +901,22 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 	int tile_stride = fft->tile_stride; // Size of tile without overlap (N-(M-1))
 
 	cout<<"tile size: "<<tile_size<<endl;
-	cout<<"overlap: "<<overlap<<endl;
-	cout<<"tile stride: "<<tile_stride<<endl;
+	//cout<<"overlap: "<<overlap<<endl;
+	//cout<<"tile stride: "<<tile_stride<<endl;
 
 	int num_input_channels = X->size[0];
     int input_height = X->size[1];
     int input_width = X->size[2];
 
-	cout<<"num input channels: "<<num_input_channels<<endl;
-	cout<<"input hxw: "<<input_height<<" "<<input_width<<endl;
+	//cout<<"num input channels: "<<num_input_channels<<endl;
+	//cout<<"input hxw: "<<input_height<<" "<<input_width<<endl;
 
     int num_output_channels = Z->size[0];
     int output_height = Z->size[1];
     int output_width = Z->size[2];
 
-	cout<<"num output channels: "<<num_output_channels<<endl;
-	cout<<"output hxw: "<<output_height<<" "<<output_width<<endl;
+	//cout<<"num output channels: "<<num_output_channels<<endl;
+	//cout<<"output hxw: "<<output_height<<" "<<output_width<<endl;
 
 	//create input tiles:
 	float numTilesRows_unchecked = ((static_cast<float>(X->size[1]) - static_cast<float>(tile_size)) / static_cast<float>(tile_stride)) +1;
@@ -927,15 +927,15 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 	int numTilesRows = check_decimal(numTilesRows_unchecked);
 	int numTilesCols = check_decimal(numTilesCols_unchecked);
 
-	cout<<"num tile rows: "<<numTilesRows<<endl;
-	cout<<"num tile cols: "<<numTilesCols<<endl;
+	//cout<<"num tile rows: "<<numTilesRows<<endl;
+	//cout<<"num tile cols: "<<numTilesCols<<endl;
 
 	C_Tensor *tile = new C_Tensor(X->size[0], tile_size, tile_size);
 
 	//CurrWeight ... Z->size[0] x different weights in U_fft. For each weight-Tensor own iteration. 
 	for(int CurrWeight = 0; CurrWeight < Z->size[0]; CurrWeight++){
 		// Loop over the tiles
-			cout<<"cur weight"<<CurrWeight<<endl;
+			//cout<<"cur weight"<<CurrWeight<<endl;
 
 		//#############################################
 		//extract the tiles from the feature maps 
@@ -1068,11 +1068,10 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 
 				delete temp_fft;
 				delete tile2d;
-				delete [] tile_fft;
 				
 
 	
-				/*//cout<<"performed fft on tiles"<<endl;
+				//cout<<"performed fft on tiles"<<endl;
 
 				//numFeatureMaps ... amount feature maps of transformed tiles
 				//numRows ... amount rows transformed tiles
@@ -1082,7 +1081,7 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 				int numCols = tile_fft->size[2];
 				
 				//m ... result element-wise multiplication. Transformed m
-				Tensor m(numFeatureMaps, numRows, numCols);
+				C_Tensor m(numFeatureMaps, numRows, numCols);
 
 				// Perform element-wise multiplication for each feature map
 				for (int featureMap = 0; featureMap < numFeatureMaps; featureMap++) {
@@ -1094,7 +1093,7 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 					}
 				}
 
-				//############################################
+				/*//############################################
 				//Add output tile feature maps for one weight
 				//############################################
 
@@ -1110,10 +1109,15 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 							ifft2d(&m_sum, &m_sum);
 						}
 					}
-				}
+				}*/
 
-				}
-			}}}
+				
+				delete [] tile_fft;
+
+				
+
+				
+			}
 
 			/*TO DO: 	remove padded parts before or after ifft2d?
 						discard first M-1 of the output tile
@@ -1138,7 +1142,7 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 	// inverse fft on temp_output
 	// Store N − (M − 1) values in the real output matrix (Discard first M − 1)*/
 
-}}} delete tile;}
+}} delete tile;}
 
 
 /*--------------------------------------- Basic ------------------------------------------*/
