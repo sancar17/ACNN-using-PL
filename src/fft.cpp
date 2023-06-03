@@ -1,4 +1,6 @@
 #include "fft.h"
+#include <iostream>
+using namespace std;
 
 void C_Tensor::allocate(uint32_t dim_z, uint32_t dim_y, uint32_t dim_x)
 {
@@ -35,41 +37,33 @@ C_Tensor::~C_Tensor()
 	}
 }
 
-void fft(C_FLOAT * x_in, C_FLOAT * X_out, int N)
-{
-	//recursive implementation
-	//X[k] = even[k] + twiddle factor * odd[k]
 
-	if(N == 1) {
-        // base of the recursion
+void fft(C_FLOAT *x_in, C_FLOAT *X_out, int N) {
+    if (N == 1) {
         X_out[0] = x_in[0];
     } else {
-        // Allocate temporary arrays
         C_FLOAT* x_even = new C_FLOAT[N/2];
         C_FLOAT* x_odd = new C_FLOAT[N/2];
+        
         C_FLOAT* X_even = new C_FLOAT[N/2];
         C_FLOAT* X_odd = new C_FLOAT[N/2];
 
-        // Split even and odd elements of the input
-        for(int i = 0; i < N/2; i++) {
+        for (int i = 0; i < N/2; i++) {
             x_even[i] = x_in[2*i];
             x_odd[i] = x_in[2*i + 1];
         }
 
-        // Recursive FFT call for even and odd inputs
         fft(x_even, X_even, N/2);
         fft(x_odd, X_odd, N/2);
 
-        //X[k] = even[k] + twiddle factor * odd[k]
-        for(int k = 0; k < N/2; k++) {
-
+        for (int k = 0; k < N/2; k++) {
             C_FLOAT twiddle = std::exp(C_FLOAT(0, -2.0 * M_PI / N * k));
-			C_FLOAT t = twiddle * X_odd[k];
-            X_out[k] = X_even[k] + t;  // For the first half
-            X_out[k + N/2] = X_even[k] - t;  // For the second half
+            C_FLOAT t = twiddle * X_odd[k];
+            
+            X_out[k] = X_even[k] + t;
+            X_out[k + N/2] = X_even[k] - t;
         }
 
-        // Deallocate memory
         delete[] x_even;
         delete[] x_odd;
         delete[] X_even;
@@ -77,56 +71,13 @@ void fft(C_FLOAT * x_in, C_FLOAT * X_out, int N)
     }
 }
 
-void ifft(C_FLOAT * x_in, C_FLOAT * X_out, int N)
-{
-	//Almost same as fft
-	//Divide by N after the transformation
-	//Twiddle factor has positive j
-	//Use recursion again
 
-	if(N == 1) {
-        // base of the recursion
-        X_out[0] = x_in[0];
-    } else {
-        // Allocate temporary arrays
-        C_FLOAT* x_even = new C_FLOAT[N/2];
-        C_FLOAT* x_odd = new C_FLOAT[N/2];
-        C_FLOAT* X_even = new C_FLOAT[N/2];
-        C_FLOAT* X_odd = new C_FLOAT[N/2];
-
-        // Split even and odd elements of the input
-        for(int i = 0; i < N/2; i++) {
-            x_even[i] = x_in[2*i];
-            x_odd[i] = x_in[2*i + 1];
-        }
-
-        // Recursive IFFT call for even and odd inputs
-        fft(x_even, X_even, N/2);
-        fft(x_odd, X_odd, N/2);
-
-    	//X[k] = (even[k] + twiddle factor * odd[k])/N
-        for(int k = 0; k < N/2; k++) {
-
-            C_FLOAT twiddle = std::exp(C_FLOAT(0, 2.0 * M_PI / N * k));
-			C_FLOAT t = twiddle * X_odd[k];
-            X_out[k] = (X_even[k] + t) / float(N);  // For the first half
-            X_out[k + N/2] = (X_even[k] - t) / float(N);  // For the second half
-        }
-
-        // Deallocate memory
-        delete[] x_even;
-        delete[] x_odd;
-        delete[] X_even;
-        delete[] X_odd;
-    }
-}
 
 //For 2D FFT and IFFT we will use the FFT and IFFT functions from above
 // We will apply FFT and IFFT column-wise and then row-wise
 
-void fft2d(C_Tensor * x_in, C_Tensor * X_f)
-{
-	int dim_z = x_in->size[0];
+void fft2d(C_Tensor *x_in, C_Tensor *X_f) {
+    int dim_z = x_in->size[0];
     int dim_y = x_in->size[1];
     int dim_x = x_in->size[2];
 
@@ -140,6 +91,7 @@ void fft2d(C_Tensor * x_in, C_Tensor * X_f)
     // Perform FFT column-wise
     C_FLOAT *col_in = new C_FLOAT[dim_y];
     C_FLOAT *col_out = new C_FLOAT[dim_y];
+
     for (int z = 0; z < dim_z; z++) {
         for (int x = 0; x < dim_x; x++) {
             for (int y = 0; y < dim_y; y++) {
@@ -156,17 +108,58 @@ void fft2d(C_Tensor * x_in, C_Tensor * X_f)
     delete[] col_out;
 }
 
+
 //Same as FFT, just use IFFT instead
-void ifft2d(C_Tensor * X_f , C_Tensor * x_out)
-{
-	int dim_z = X_f->size[0];
+void ifft_recursive(C_FLOAT *x_in, C_FLOAT *X_out, int N) {
+    if (N == 1) {
+        X_out[0] = x_in[0];
+    } else {
+        C_FLOAT *x_even = new C_FLOAT[N/2];
+        C_FLOAT *x_odd = new C_FLOAT[N/2];
+        C_FLOAT *X_even = new C_FLOAT[N/2];
+        C_FLOAT *X_odd = new C_FLOAT[N/2];
+
+        for (int i = 0; i < N/2; i++) {
+            x_even[i] = x_in[2*i];
+            x_odd[i] = x_in[2*i + 1];
+        }
+
+        ifft_recursive(x_even, X_even, N/2);
+        ifft_recursive(x_odd, X_odd, N/2);
+
+        for (int k = 0; k < N/2; k++) {
+            C_FLOAT twiddle = std::exp(C_FLOAT(0, 2.0 * M_PI / N * k));
+            C_FLOAT t = twiddle * X_odd[k];
+            X_out[k] = (X_even[k] + t);  // For the first half
+            X_out[k + N/2] = (X_even[k] - t);  // For the second half
+        }
+
+        delete[] x_even;
+        delete[] x_odd;
+        delete[] X_even;
+        delete[] X_odd;
+    }
+}
+
+void ifft(C_FLOAT *x_in, C_FLOAT *X_out, int N) {
+    // IFFT computation
+    ifft_recursive(x_in, X_out, N);
+
+    // Scale the IFFT output by dividing by N
+    for (int i = 0; i < N; i++) {
+        X_out[i] /= static_cast<C_FLOAT>(N);
+    }
+}
+
+void ifft2d(C_Tensor *X_f, C_Tensor *x_out) {
+    int dim_z = X_f->size[0];
     int dim_y = X_f->size[1];
     int dim_x = X_f->size[2];
 
     // Perform IFFT row-wise
     for (int z = 0; z < dim_z; z++) {
         for (int y = 0; y < dim_y; y++) {
-            ifft(X_f->data[z][y], x_out->data[z][y], dim_x);
+            ifft(&X_f->data[z][y][0], &x_out->data[z][y][0], dim_x);
         }
     }
 
@@ -188,5 +181,8 @@ void ifft2d(C_Tensor * X_f , C_Tensor * x_out)
     delete[] col_in;
     delete[] col_out;
 }
+
+
+
 
 
