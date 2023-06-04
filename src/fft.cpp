@@ -181,8 +181,3 @@ void ifft2d(C_Tensor *X_f, C_Tensor *x_out) {
     delete[] col_in;
     delete[] col_out;
 }
-
-
-
-
-
