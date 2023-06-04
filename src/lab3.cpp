@@ -3,6 +3,9 @@
 #include "time.h"
 #include "conv.h"
 #include <cstdio>
+#include <iostream>
+
+using namespace std;
 
 
 
@@ -116,8 +119,38 @@ void testConv(const char * infile,int select)
 	Tensor X,R,B;
 	printf("------------------------------\n");
 	printf("Testing Convolutional Layer...\n");
-	while(1){
+	int test = 0;
+	while(test==0){
 		Tensor * W = readConv(&X,&R,&B,f);
+
+		cout<<"input"<<endl;
+
+		for(int i=0; i<X.size[0]; i++){
+			for(int j=0; j<X.size[1]; j++){
+				for(int k=0; k<X.size[2];k++){
+					cout<<X.data[i][j][k]<<" ";
+				}
+				cout<<endl;
+			}
+
+			cout<<endl;
+		}
+		cout<<endl;
+
+		cout<<"weight"<<endl;
+
+		for(int i=0; i<W->size[0]; i++){
+			for(int j=0; j<W->size[1]; j++){
+				for(int k=0; k<W->size[2];k++){
+					cout<<W[0].data[i][j][k]<<" ";
+				}
+				cout<<endl;
+			}
+
+			cout<<endl;
+		}
+		cout<<endl;
+
 		if(W == NULL)
 			break;
 		Tensor Z(R.size[0],R.size[1],R.size[2]);
@@ -127,7 +160,7 @@ void testConv(const char * infile,int select)
 		/* Select Optimization */
 		if(select == 0)
 			convBasic(&X,W,&B,&Z);
-		else if(select == 1){
+		else if(select == 1 && test==0){
 			C_Tensor * U = fftWeights(W,Z.size[0]);
 			convFFT(&(X),U,&(B),&(Z),W->size[2]);
 			delete [] U;
@@ -141,6 +174,7 @@ void testConv(const char * infile,int select)
 			printf("Not implemented %d!\n",select);
 		compareTensors(&Z,&R,1,1e-3);
 		delete [] W;
+		test++;
 	}
 	fclose(f);
 }
