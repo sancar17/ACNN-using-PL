@@ -957,8 +957,8 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 	int tile_stride = fft->tile_stride; // Size of tile without overlap (N-(M-1))
 
 	cout<<"tile size: "<<tile_size<<endl;
-	cout<<"overlap: "<<overlap<<endl;
-	cout<<"tile stride: "<<tile_stride<<endl;
+	//cout<<"overlap: "<<overlap<<endl;
+	//cout<<"tile stride: "<<tile_stride<<endl;
 
 	int num_input_channels = X->size[0];
     int input_height = X->size[1];
@@ -1089,46 +1089,35 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 					//Subnote 2: Transformation function winoTile wants Array of Tensors as input. 
 					//Subnote 3: Tile only tensor in array. output_size = 1.
 				int input_size = X->size[0]; 
-				C_Tensor *tile_fft = new C_Tensor[input_size];
+				C_Tensor *tile_fft = new C_Tensor[1];
 				C_Tensor *temp_fft = new C_Tensor[1];
 				C_Tensor *tile2d = new C_Tensor[1];
 
 				tile2d[0].allocate(1, fft->tile_size, fft->tile_size);
 				temp_fft[0].allocate(1, fft->tile_size, fft->tile_size);
+				tile_fft[0].allocate(X->size[0], fft->tile_size, fft->tile_size);
 
 				//cout<<"start fft on tiles:"<<endl;
 				for(int c=0; c<X->size[0]; c++){
 					
-					tile_fft[c].allocate(X->size[0], fft->tile_size, fft->tile_size);
-					
-					
 					for(int j=0; j<fft->tile_size; j++){
 						for(int k=0; k<fft->tile_size; k++){
 							tile2d[0].data[0][j][k] = tile[0].data[c][j][k];
-				//cout<<"3"<<endl;
 						}
 					}
 
-					//cout<<" 1"<<endl;
-
 					fft2d(&tile2d[0], &temp_fft[0]);
-					//cout<<" 2"<<endl;
 					
-					for(int i=0; i<input_size; i++){
-						for(int j=0; j<fft->tile_size; j++){
-							for(int k=0; k<fft->tile_size; k++){
-								tile_fft[c].data[i][j][k] = temp_fft[0].data[0][j][k];
-					//cout<<"3"<<endl;
-							}
+					for(int j=0; j<fft->tile_size; j++){
+						for(int k=0; k<fft->tile_size; k++){
+							tile_fft[0].data[c][j][k] = temp_fft[0].data[0][j][k];
 						}
 					}
 				}
 
-				delete temp_fft;
-				delete tile2d;
+				delete [] temp_fft;
+				delete [] tile2d;
 				
-
-	
 				//cout<<"performed fft on tiles"<<endl;
 
 				//numFeatureMaps ... amount feature maps of transformed tiles
@@ -1148,7 +1137,8 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 					for (int row = 0; row < numRows; row++) {
 						for (int col = 0; col < numCols; col++) {
 							// Perform element-wise multiplication between corresponding feature maps
-							m->data[featureMap][row][col].real(tile_fft->data[featureMap][row][col].real() * U_fft[CurrWeight].data[featureMap][row][col].real());
+							m->data[featureMap][row][col] = tile_fft->data[featureMap][row][col] * U_fft[CurrWeight].data[featureMap][row][col];
+							//cout<<"element wise: "<<m->data[featureMap][row][col]<<endl;
 						}
 					}
 				}
@@ -1172,7 +1162,6 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 							// Accumulate the sum for each location
 							m_sum->data[0][row][col] += m->data[featureMap][row][col];
 							//inverse fft
-							
 						}
 					}
 				}
@@ -1196,8 +1185,8 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 						cout<<"rows cols: "<<rows<<" "<<cols<<" "<<endl;
 						cout<<"rows cols of output tile: "<<rows-startRow-overlap<<" "<<cols-startCol-overlap<<" "<<endl;
 						cout<<"ifft size: "<<ifft_sum->size[1]<<" "<< ifft_sum->size[2]<<endl;
-						//cout<<"data ifft: "<<ifft_sum->data[0][rows][cols]<<endl;
-						//cout<<"output tile: "<<output_tile[0].data[0][rows-startRow-overlap][cols-startCol-overlap]<<endl;
+						cout<<"data ifft: "<<ifft_sum->data[0][rows][cols]<<endl;
+						cout<<"output tile: "<<output_tile[0].data[0][rows-startRow-overlap][cols-startCol-overlap]<<endl;
 						if(rows==8 && cols==2)
 							cout<<"ifft_sum data: "<<ifft_sum->data[0][rows][cols]<<endl;
 						output_tile[0].data[0][rows-startRow-overlap][cols-startCol-overlap].real(ifft_sum->data[0][rows][cols].real());
