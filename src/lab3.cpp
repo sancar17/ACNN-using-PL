@@ -120,10 +120,10 @@ void testConv(const char * infile,int select)
 	printf("------------------------------\n");
 	printf("Testing Convolutional Layer...\n");
 	int test = 0;
-	while(test==0){
+	while(1){
 		Tensor * W = readConv(&X,&R,&B,f);
 
-		cout<<"input"<<endl;
+		/*cout<<"input"<<endl;
 
 		for(int i=0; i<X.size[0]; i++){
 			for(int j=0; j<X.size[1]; j++){
@@ -149,7 +149,7 @@ void testConv(const char * infile,int select)
 
 			cout<<endl;
 		}
-		cout<<endl;
+		cout<<endl;*/
 
 		if(W == NULL)
 			break;
@@ -160,7 +160,7 @@ void testConv(const char * infile,int select)
 		/* Select Optimization */
 		if(select == 0)
 			convBasic(&X,W,&B,&Z);
-		else if(select == 1 && test==0){
+		else if(select == 1){
 			C_Tensor * U = fftWeights(W,Z.size[0]);
 			convFFT(&(X),U,&(B),&(Z),W->size[2]);
 			delete [] U;
