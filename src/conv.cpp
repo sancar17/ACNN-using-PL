@@ -1094,8 +1094,8 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 	int pad_amount_column = 0;
 				
 	//create input tiles:
-	float numTilesRows_unchecked = ((static_cast<float>(X->size[1]) - static_cast<float>(tile_size)) / static_cast<float>(tile_stride)) +1;
-    float numTilesCols_unchecked = ((static_cast<float>(X->size[2]) - static_cast<float>(tile_size)) / static_cast<float>(tile_stride)) +1;
+	float numTilesRows_unchecked = ((static_cast<float>(X->size[1])) / static_cast<float>(tile_stride));
+    float numTilesCols_unchecked = ((static_cast<float>(X->size[2])) / static_cast<float>(tile_stride));
 
 	int numTilesRows = check_decimal(numTilesRows_unchecked);
 	int numTilesCols = check_decimal(numTilesCols_unchecked);
@@ -1360,6 +1360,9 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 				output_tile[0].allocate(1, row_size, column_size);
 
 				int r = 0, c = 0;
+				
+				if(tile_size-pad_amount_column-overlap<=0) cout<<"aaaaaaa"<<endl;
+				if(tile_size-pad_amount_row-overlap<=0) cout<<"bbbbb"<<endl;
 
 				for(int rows = overlap; rows < (ifft_sum.size[1] - pad_amount_row); rows++){
 						c = 0;
@@ -1427,7 +1430,6 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 
 void convBasic(Tensor * X, Tensor * W ,  Tensor * b, Tensor * Z)
 {
-#if 0
 	int Zc = 0, Zm = 0, Zn = 0;
 
     Zc = W->size[0]; // ASK: Is number of output channels same here as number of channels in wt and img
@@ -1481,5 +1483,4 @@ void convBasic(Tensor * X, Tensor * W ,  Tensor * b, Tensor * Z)
             }
         }
     }
-	#endif
 }
