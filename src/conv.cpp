@@ -810,25 +810,26 @@ C_Tensor * fftWeights(Tensor * W, int output_channels)
 		currFilter  = &W[filters];
 		////cout<<"1"<<endl;
 
-		#if 0
-		//cout<<"original: "<<endl;
-		for(int i = 0; i<W[filters].size[0]; i++){
-			for(int j = 0; j<W[filters].size[1]; j++){
-				for(int k = 0; k<W[filters].size[2]; k++){
-					//cout<<W[filters].data[i][j][k]<<" ";
+		/*if(filters==1){
+			cout<<"original: "<<endl;
+			for(int i = 0; i<W[filters].size[0]; i++){
+				cout<<"channel: "<<i<<endl;
+				for(int j = 0; j<W[filters].size[1]; j++){
+					for(int k = 0; k<W[filters].size[2]; k++){
+						cout<<W[filters].data[i][j][k]<<" ";
+					}
+					cout<<endl;
 				}
-				//cout<<endl;
+				cout<<endl;
 			}
-			//cout<<endl;
-		}
-		#endif
+		}*/
+		
 		/***************** PADDING OF WEIGHTS *********************/
 
 		//pad the weights such that its total length ==  tile_size
 		int pad_size =  fft->tile_size  - currFilter->size[1];
 		////cout<<"2"<<endl;
-		currFilter_padded[filters].allocate(1 , fft->tile_size,\
-			fft->tile_size);
+		currFilter_padded[filters].allocate(1 , fft->tile_size, fft->tile_size);
 		////cout<<"3"<<endl;
 	
 		// Copy the content from W to currFilter_padded
@@ -901,16 +902,21 @@ C_Tensor * fftWeights(Tensor * W, int output_channels)
 			}
 			flip_Matrix( currFilter, &temp_bfrPad[filters], c );
 			
-			#if 0
-			for (size_t i = 0; i < temp_bfrPad->size[0]; i++)
-			{
-				for (size_t j = 0; j < temp_bfrPad[filters].size[1]; j++){
-					for (size_t k = 0; k < temp_bfrPad[filters].size[2]; k++){
-							//cout<<temp_bfrPad[filters].data[0][j][k]<<" ";
+			/*if(filters==1){
+				cout<<"after flipping:"<<endl;
+				cout<<"channel: "<<c<<endl;
+					for (size_t j = 0; j < temp_bfrPad[filters].size[1]; j++){
+						
+						for (size_t k = 0; k < temp_bfrPad[filters].size[2]; k++){
+							
+							cout<<temp_bfrPad[filters].data[0][j][k]<<" ";
+						}
+						cout<<endl;
 					}
-				}
-			}
-			#endif
+					cout<<endl;
+
+			}*/
+			
 			for (size_t j = 0; j < currFilter->size[1]; j++)
             {
                 for (size_t k = 0; k < currFilter->size[2]; k++)
@@ -936,7 +942,24 @@ C_Tensor * fftWeights(Tensor * W, int output_channels)
         	        	}
 
 					//cout<<endl;
-        	    	}			
+        	    	}
+
+			/*if(filters==1){
+				cout<<"after fft:"<<endl;
+				cout<<"channel: "<<c<<endl;
+				for (size_t i = 0; i < temp_bfrPad->size[0]; i++)
+				{
+					for (size_t j = 0; j < temp_bfrPad[filters].size[1]; j++){
+						for (size_t k = 0; k < temp_bfrPad[filters].size[2]; k++){
+								cout<<U_fft[filters].data[c][j][k]<<" ";
+						}
+						cout<<endl;
+					}
+					cout<<endl;
+				}
+				cout<<endl;
+			}	*/		
+			//cout<<endl;
 
 		}
 		#endif 
@@ -1043,6 +1066,16 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
         Tensor * Z, int k_size)
 {
 
+	/*for(int i=0; i<B->size[0]; i++){
+		for(int j=0; j<B->size[1]; j++){
+			for(int k=0; k<B->size[2]; k++){
+				cout<<B->data[i][j][k]<<" ";
+			}
+			cout<<endl;
+		}
+		cout<<endl;
+	}*/
+	//exit(0);
 	// Pick tile size
     const FFT_STRUCT *fft = getFFT(k_size);
     int tile_size = fft->tile_size; // Size of tile including overlap (N)
@@ -1089,6 +1122,14 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 		//for each tile
 		for (int tileRow = 0; tileRow < numTilesRows; tileRow++) {
 			for (int tileCol = 0; tileCol < numTilesCols; tileCol++) {
+
+				for(int i=0; i<tile->size[0]; i++){
+					for(int j=0; j<tile->size[1]; j++){
+						for(int k=0; k<tile->size[2]; k++){
+							tile->data[i][j][k] = 0.0;
+						}
+					}
+				}
 			
 				int startRow = tileRow * fft->tile_stride;
 				int endRow = startRow + fft->tile_size;
@@ -1110,17 +1151,32 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 							tile->data[featureMap][row-startRow][col-startCol] = X->data[featureMap][row][col];
 						}
 					}
-					#if 0
-					//cout<<"tile after padding: "<<endl;
+					
+				}
+
+				/*if (CurrWeight==1){
+				cout<<"original data: "<<endl;
+				for(int featureMap=0; featureMap<X->size[0]; featureMap++){
+				for (int row = startRow; row < endRow; row++) {
+					for (int col = startCol; col < endCol; col++) {
+						cout<<X->data[featureMap][row][col]<<" ";
+					}
+					cout<<endl;
+				}
+				cout<<endl;
+				}
+
+				cout<<"tile2 after padding: "<<endl;
+					for(int featureMap=0; featureMap<X->size[0]; featureMap++){
 					for (int row = 0; row < fft->tile_size; row++) {
 						for (int col = 0; col < fft->tile_size; col++) {
-							//cout<<tile->data[featureMap][row][col]<<" ";
+							cout<<tile->data[featureMap][row][col]<<" ";
 						}
-						//cout<<endl;
+						cout<<endl;
 					}
-					//cout<<endl;
-					#endif
-				}
+					cout<<endl;
+					}
+				}*/
 
 				int input_size = X->size[0]; 
 				C_Tensor *tile_fft = new C_Tensor[1];
@@ -1138,27 +1194,30 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 						}
 					}
 
-					/*//cout<<"tile2d: "<<endl;
+					/*if (CurrWeight==1){
+					cout<<"tile2d channel: "<<c<<endl;
 					for(int j=0; j<fft->tile_size; j++){
 						for(int k=0; k<fft->tile_size; k++){
-							//cout<<tile2d[0].data[0][j][k]<<" ";
+							cout<<tile2d[0].data[0][j][k]<<" ";
 						}
-						//cout<<endl;
+						cout<<endl;
 					}
-					//cout<<endl;*/
+					cout<<endl;
+					}*/
 
 					fft2d(&tile2d[0], &temp_fft[0]);
 
-					#if 0
-					//cout<<"tempfft: "<<endl;
+					/*#if 1
+					if (CurrWeight==1){
+					cout<<"fft channel: "<<c<<endl;
 					for(int j=0; j<fft->tile_size; j++){
 						for(int k=0; k<fft->tile_size; k++){
-							//cout<<temp_fft[0].data[0][j][k]<<" ";
+							cout<<temp_fft[0].data[0][j][k]<<" ";
 						}
-						//cout<<endl;
+						cout<<endl;
 					}
-					//cout<<endl;
-					#endif 
+					cout<<endl;
+					}*/
 
 					for(int j=0; j<fft->tile_size; j++){
 						for(int k=0; k<fft->tile_size; k++){
@@ -1166,6 +1225,17 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 
 						}
 					}
+
+					/*if (CurrWeight==1){
+					cout<<"tile fft channel: "<<c<<endl;
+					for(int j=0; j<fft->tile_size; j++){
+						for(int k=0; k<fft->tile_size; k++){
+							cout<<tile_fft[0].data[c][j][k]<<" ";
+						}
+						cout<<endl;
+					}
+					cout<<endl;
+					}*/
 				}
 
 				#if 0
@@ -1204,14 +1274,16 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 
 				for(int c = 0; c<numFeatureMaps; c++){
 
-					/*//cout<<"tile_fft channel: "<<c<<endl;
-					for (int row = 0; row < numRows; row++) {
-							for (int col = 0; col < numCols; col++) {
-								//cout<<tile_fft->data[c][row][col]<<" ";
-							}
-							//cout<<endl;
+					/*if (CurrWeight==1){
+					cout<<"element wise mult channel: "<<c<<endl;
+					for(int j=0; j<fft->tile_size; j++){
+						for(int k=0; k<fft->tile_size; k++){
+							cout<<m.data[c][j][k]<<" ";
+						}
+						cout<<endl;
 					}
-					//cout<<endl;*/
+					cout<<endl;
+					}
 
 					#if 0
 					//cout<<"U_fft channel: "<<c<<endl;
@@ -1233,7 +1305,7 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 							//cout<<endl;
 					}
 					//cout<<endl;
-				#endif
+				#endif*/
 				
 				}
 
@@ -1314,7 +1386,7 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 
 				for(int i=0; i<output_tile->size[1]; i++){
 					for(int j=0; j<output_tile->size[2]; j++){
-						Z->data[CurrWeight][tileRow*(fft->tile_size-fft->overlap)+i][tileCol*(fft->tile_size-fft->overlap)+j] = output_tile[0].data[0][i][j].real();
+						Z->data[CurrWeight][tileRow*(fft->tile_size-fft->overlap)+i][tileCol*(fft->tile_size-fft->overlap)+j] = output_tile[0].data[0][i][j].real()+B->data[0][0][CurrWeight];
 					}
 				}
 
@@ -1328,14 +1400,13 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 				}
 				#endif
 				delete [] tile_fft;
-				
 				delete [] output_tile;
 			}
 		}
 	}
 
 	////cout<<"Z: "<<endl;
-	for(int c=0; c<Z->size[0];c++){
+	/*for(int c=0; c<Z->size[0];c++){
 		for(int i=0; i<Z->size[1]; i++){
 			for(int j=0; j<Z->size[2]; j++){
 				Z->data[c][i][j] += B->data[0][0][0];
@@ -1345,7 +1416,7 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 		}
 
 		//cout<<endl;
-	}
+	}*/
 
 	delete tile;
 }
