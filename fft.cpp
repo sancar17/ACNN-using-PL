@@ -37,30 +37,14 @@ C_Tensor::~C_Tensor()
 	}
 }
 
-int bit_reverse(int num, int num_bits) {
-    int reversed_num = 0;
-    for (int i = 0; i < num_bits; i++) {
-        reversed_num <<= 1;
-        reversed_num |= (num & 1);
-        num >>= 1;
-    }
-    return reversed_num;
-}
-
 
 void fft(C_FLOAT *x_in, C_FLOAT *X_out, int N) {
-    for (int i = 0; i < N; i++) {
-        int j = bit_reverse(i, log2(N));
-        if (j > i) {
-            std::swap(x_in[i], x_in[j]);
-        }
-    }
-    
     if (N == 1) {
         X_out[0] = x_in[0];
     } else {
         C_FLOAT* x_even = new C_FLOAT[N/2];
         C_FLOAT* x_odd = new C_FLOAT[N/2];
+        
         C_FLOAT* X_even = new C_FLOAT[N/2];
         C_FLOAT* X_odd = new C_FLOAT[N/2];
 
@@ -84,55 +68,6 @@ void fft(C_FLOAT *x_in, C_FLOAT *X_out, int N) {
         delete[] x_odd;
         delete[] X_even;
         delete[] X_odd;
-    }
-}
-
-void ifft_recursive(C_FLOAT *x_in, C_FLOAT *X_out, int N) {
-    if (N == 1) {
-        X_out[0] = x_in[0];
-    } else {
-        C_FLOAT *x_even = new C_FLOAT[N/2];
-        C_FLOAT *x_odd = new C_FLOAT[N/2];
-        C_FLOAT *X_even = new C_FLOAT[N/2];
-        C_FLOAT *X_odd = new C_FLOAT[N/2];
-
-        for (int i = 0; i < N/2; i++) {
-            x_even[i] = x_in[2*i];
-            x_odd[i] = x_in[2*i + 1];
-        }
-
-        ifft_recursive(x_even, X_even, N/2);
-        ifft_recursive(x_odd, X_odd, N/2);
-
-        for (int k = 0; k < N/2; k++) {
-            C_FLOAT twiddle = std::exp(C_FLOAT(0, 2.0 * M_PI / N * k));
-            C_FLOAT t = twiddle * X_odd[k];
-            X_out[k] = (X_even[k] + t);  // For the first half
-            X_out[k + N/2] = (X_even[k] - t);  // For the second half
-        }
-
-        delete[] x_even;
-        delete[] x_odd;
-        delete[] X_even;
-        delete[] X_odd;
-    }
-}
-
-void ifft(C_FLOAT *x_in, C_FLOAT *X_out, int N) {
-    // Bit-reversal permutation
-    for (int i = 0; i < N; i++) {
-        int j = bit_reverse(i, log2(N));
-        if (j > i) {
-            std::swap(x_in[i], x_in[j]);
-        }
-    }
-
-    // IFFT computation
-    ifft_recursive(x_in, X_out, N);
-
-    // Scale the IFFT output by dividing by N
-    for (int i = 0; i < N; i++) {
-        X_out[i] /= static_cast<C_FLOAT>(N);
     }
 }
 
@@ -175,6 +110,47 @@ void fft2d(C_Tensor *x_in, C_Tensor *X_f) {
 
 
 //Same as FFT, just use IFFT instead
+void ifft_recursive(C_FLOAT *x_in, C_FLOAT *X_out, int N) {
+    if (N == 1) {
+        X_out[0] = x_in[0];
+    } else {
+        C_FLOAT *x_even = new C_FLOAT[N/2];
+        C_FLOAT *x_odd = new C_FLOAT[N/2];
+        C_FLOAT *X_even = new C_FLOAT[N/2];
+        C_FLOAT *X_odd = new C_FLOAT[N/2];
+
+        for (int i = 0; i < N/2; i++) {
+            x_even[i] = x_in[2*i];
+            x_odd[i] = x_in[2*i + 1];
+        }
+
+        ifft_recursive(x_even, X_even, N/2);
+        ifft_recursive(x_odd, X_odd, N/2);
+
+        for (int k = 0; k < N/2; k++) {
+            C_FLOAT twiddle = std::exp(C_FLOAT(0, 2.0 * M_PI / N * k));
+            C_FLOAT t = twiddle * X_odd[k];
+            X_out[k] = (X_even[k] + t);  // For the first half
+            X_out[k + N/2] = (X_even[k] - t);  // For the second half
+        }
+
+        delete[] x_even;
+        delete[] x_odd;
+        delete[] X_even;
+        delete[] X_odd;
+    }
+}
+
+void ifft(C_FLOAT *x_in, C_FLOAT *X_out, int N) {
+    // IFFT computation
+    ifft_recursive(x_in, X_out, N);
+
+    // Scale the IFFT output by dividing by N
+    for (int i = 0; i < N; i++) {
+        X_out[i] /= static_cast<C_FLOAT>(N);
+    }
+}
+
 void ifft2d(C_Tensor *X_f, C_Tensor *x_out) {
     int dim_z = X_f->size[0];
     int dim_y = X_f->size[1];
@@ -205,7 +181,8 @@ void ifft2d(C_Tensor *X_f, C_Tensor *x_out) {
     delete[] col_in;
     delete[] col_out;
 }
-// DIVIDING BY N IS DELETED
+
+
 
 
 
