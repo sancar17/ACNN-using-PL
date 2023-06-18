@@ -1461,21 +1461,21 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 	int overlap = fft->overlap; // Size of overlap = w.x - 1 (M-1)
 	int tile_stride = fft->tile_stride; // Size of tile without overlap (N-(M-1))
 	
-	cout<<"tile size: "<<tile_size<<endl;
+	/*cout<<"tile size: "<<tile_size<<endl;
 	cout<<"overlap: "<<overlap<<endl;
-	cout<<"tile stride: "<<tile_stride<<endl;
+	cout<<"tile stride: "<<tile_stride<<endl;*/
 
 	int num_input_channels = X->size[0];
     int input_height = X->size[1];
     int input_width = X->size[2];
 
-	cout<<"input size: "<<num_input_channels<<" "<<input_height<<" "<<input_width<<endl;
+	//cout<<"input size: "<<num_input_channels<<" "<<input_height<<" "<<input_width<<endl;
 
     int num_output_channels = Z->size[0];
     int output_height = Z->size[1];
     int output_width = Z->size[2];
 
-	cout<<"output size: "<<num_output_channels<<" "<<output_height<<" "<<output_width<<endl;
+	//cout<<"output size: "<<num_output_channels<<" "<<output_height<<" "<<output_width<<endl;
 
 	int pad_amount_row = 0;
 	int pad_amount_column = 0;
@@ -1487,8 +1487,8 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 	int numTilesRows = check_decimal(numTilesRows_unchecked);
 	int numTilesCols = check_decimal(numTilesCols_unchecked);
 
-	printf("numTilesRows: %d\n", numTilesRows);
-	printf("numTilesCols: %d\n",numTilesCols);
+	/*printf("numTilesRows: %d\n", numTilesRows);
+	printf("numTilesCols: %d\n",numTilesCols);*/
 
 	C_Tensor *tile = new C_Tensor(X->size[0], tile_size, tile_size);
 	//m ... result element-wise multiplication. Transformed m
@@ -1540,8 +1540,8 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 			if (endRow > X->size[1]) endRow = X->size[1];
 			if (endCol > X->size[2]) endCol = X->size[2];
 
-			cout<<"rows: "<<startRow<<" "<<endRow<<endl;
-			cout<<"cols: "<<startCol<<" "<<endCol<<endl;
+			//cout<<"rows: "<<startRow<<" "<<endRow<<endl;
+			//cout<<"cols: "<<startCol<<" "<<endCol<<endl;
 
 				//############################
 				//normal values 
@@ -1556,6 +1556,7 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 				}
 			}
 
+			#if 0
 			cout<<"second channel of the tile: "<<endl;
 
 			for (int row = 0; row < tile_size; row++) {
@@ -1575,6 +1576,8 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 				cout<<endl;
 			}
 			cout<<endl;
+
+			#endif
 
 			//##########################
 			//FFT: transform tile. T->F.
@@ -1649,6 +1652,8 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 				}
 			}
 
+			#if 0
+
 			for(int CurrWeight = 0; CurrWeight < Z->size[0]; CurrWeight++){
 				cout<<"output channel: "<<CurrWeight<<endl;
 				for (int featureMap = 0; featureMap < numFeatureMaps; featureMap++) {
@@ -1682,6 +1687,8 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 				}
 				cout<<endl;
 			}
+
+			#endif
 			
 			
 				//############
@@ -1713,6 +1720,8 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 				}
 			}
 
+			#if 0
+
 			for(int CurrWeight = 0; CurrWeight < Z->size[0]; CurrWeight++){
 				cout<<"m sum output channel: "<<CurrWeight<<endl;
 				for (int row = 0; row < numRows; row++) {
@@ -1725,6 +1734,8 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 				}
 				cout<<endl;
 			}
+
+			#endif
 
 
 			
@@ -1745,7 +1756,7 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 				//loop ... copies one feature map from m_sum into Tensor ifft_2d
 				for (int row = 0; row < numRows; row++) {
 					for (int col = 0; col < numCols; col++) {
-						ifft_2d->data[0][row][col] += m_sum.data[CurrWeight][row][col];
+						ifft_2d->data[0][row][col] = m_sum.data[CurrWeight][row][col];
 					}
 				}
 				//IFFT ... on one feature map of m_sum 
@@ -1804,6 +1815,7 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 			int output_row = fft->tile_stride*tileRow;
 			int output_col = fft->tile_stride*tileCol;
 
+			#if 0
 			for(int CurrWeight = 0; CurrWeight < Z->size[0]; CurrWeight++){
 				cout<<"output before bias channel: "<<CurrWeight<<endl;
 				for(int i=0; i<row_size && output_row + i < Z->size[1]; i++){
@@ -1814,16 +1826,20 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 				}
 				cout<<endl;
 			}
+
+			#endif
 			
 			
 			for(int CurrWeight = 0; CurrWeight < Z->size[0]; CurrWeight++){
-				for(int i=0; i<row_size && output_row + i < Z->size[1]; i++){
-					for(int j=0; j<column_size && output_col + j < Z->size[2]; j++){
+				for(int i=0; (i<row_size); i++){
+					for(int j=0; (j<column_size); j++){
 						//computing Z.
 						Z->data[CurrWeight][tileRow*(fft->tile_stride)+i][tileCol*(fft->tile_stride)+j] = ifft_sum.data[CurrWeight][i+overlap][j+overlap].real()+B->data[0][0][CurrWeight];
 					}
 				}
 			}
+
+			#if 0
 
 			for(int CurrWeight = 0; CurrWeight < Z->size[0]; CurrWeight++){
 				cout<<"output channel: "<<CurrWeight<<endl;
@@ -1837,6 +1853,8 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 
 			cout<<endl;
 
+			#endif
+
 			
 			//delete [] tile_fft;
 			//delete [] output_tile;
@@ -1849,6 +1867,8 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 	//#############################################
 
 	//loop ... add bias B to the CONV.
+
+	#if 0
 	
 	cout<<"bias: "<<endl;
 
@@ -1861,6 +1881,8 @@ void convFFT(Tensor * X, C_Tensor * U_fft, Tensor * B,
 		}
 		cout<<endl;
 	}
+
+	#endif
 }
 
 //############################################################
