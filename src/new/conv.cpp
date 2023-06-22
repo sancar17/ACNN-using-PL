@@ -64,6 +64,25 @@ const FFT_STRUCT * getFFT(uint32_t k_size)
 	return fft;
 }
 
+
+
+
+/*-------------------------------- Winograd -------------------------------------------*/
+
+
+
+void transposeMatrix( const float ** G, int rows, int cols, float ** transpose )
+{
+	for (size_t i = 0; i < rows; i++)
+	{
+		for (size_t j = 0; j < cols; j++)
+		{
+			transpose[j][i] = G[i][j];
+		}
+	}
+}
+
+
 const WINOGRAD_STRUCT * getWino(uint32_t k_size)
 {
 	const WINOGRAD_STRUCT * wino;
@@ -89,20 +108,6 @@ const WINOGRAD_STRUCT * getWino(uint32_t k_size)
 
 
 /*-------------------------------- Winograd -------------------------------------------*/
-
-
-
-void transposeMatrix( const float ** G, int rows, int cols, float ** transpose )
-{
-	for (size_t i = 0; i < rows; i++)
-	{
-		for (size_t j = 0; j < cols; j++)
-		{
-			transpose[j][i] = G[i][j];
-		}
-	}
-}
-
 
 /* 
  * Pre Transform the Weights
@@ -578,6 +583,7 @@ float check_decimal(float value)
     return result;
 }
 
+
 /*
  * Convolution using inputs and converted Weights
  * Tensor 			*U_wino	: Transformed Weight Tensor
@@ -621,6 +627,7 @@ void convWinograd(Tensor * X, Tensor * U_wino , Tensor * B, Tensor * Z, int k_si
 	float numTilesRows = check_decimal(numTilesRows_unchecked);
 	float numTilesCols = check_decimal(numTilesCols_unchecked);
 	
+	int output_size = 1;
 	//DEBUGGING HELP
 
 	// printf("\n");
@@ -798,25 +805,9 @@ void convWinograd(Tensor * X, Tensor * U_wino , Tensor * B, Tensor * Z, int k_si
 			//Transform input tile
 			//#################################
 			
-			//tile_untrans ... array of tensor. Contains all input feature map tiles.
-				//Subnote 1: Until now happend: 
-					//#1 ... defining used weights by choosing array of tensor W
-					//#2 ... defining currently considered starting point (startRow, startCol) of current tile 
-					//#3 ... defining area of the current tile. Based on (startRow, startCol) and tile-size
-					//#4 ... copy all values in the area of the input into the tile. All over all feature maps of the input into corresponding feature maps of the tile.
-				//Subnote 2: Transformation function winoTile wants Array of Tensors as input. 
-				//Subnote 3: Tile only tensor in array. output_size = 1.
-			int output_size = 1; 
-			Tensor *tile_untrans = new Tensor[output_size];
-			for(int i =0; i < output_size; i++){
-				tile_untrans[i].allocate(X->size[0], wino->tile_size, wino->tile_size);
-			}
-			//put defined, copied, untransformed input tile "tile" into array of tensors tile_untrans
-			//tile_trans ... contains transformed input tiles. Tiles from all input feature maps. All tiles come from the same coordinate location.
-			tile_untrans = tile;
 			
-			Tensor * tile_trans = winoTile(tile_untrans, 1, wino, bt_rows, bt_col, 0);
-			//delete [] tile_untrans;
+			Tensor * tile_trans = winoTile(tile, 1, wino, bt_rows, bt_col, 0);
+			
 
 			//#####################################
 			//Compute m ... transformed output tile
@@ -857,7 +848,7 @@ void convWinograd(Tensor * X, Tensor * U_wino , Tensor * B, Tensor * Z, int k_si
 				}
 			}
 			delete [] tile_trans;
-			//delete [] tile_untrans;
+			
 			//#########################################################################################
 			//Compute the sums over all individual weights. Store sums as feature maps in tensore m_sum
 			//#########################################################################################
@@ -886,16 +877,6 @@ void convWinograd(Tensor * X, Tensor * U_wino , Tensor * B, Tensor * Z, int k_si
 				//Predefinition array of tensors (input transformation)
 				//#####################################################
 
-			//m_trans ... array of Tensors. Contains the m_sum Tensor. Input for the transformation ATmA.
-			Tensor * m_trans = new Tensor[1];
-			for(int i =0; i < output_size; i++){
-				//bt_rows ... dim(BTdB) = (bt_rows, bt_rows). Due to o., dim(m) = dim(BtdB)
-					//Subnote 1: m_sum contains in each feature map the sum (over all fm input) for one weight (element W)
-				m_trans[i].allocate(Z->size[0], bt_rows, bt_rows);
-			}
-			//Tensor m_sum is the only element in the Array of Tensors m_trans
-			m_trans[0] = m_sum;
-
 
 				//##############################
 				//m -> A.TmA ... transformation
@@ -908,7 +889,8 @@ void convWinograd(Tensor * X, Tensor * U_wino , Tensor * B, Tensor * Z, int k_si
 				//at_rows ... rows of At
 				//at_col ... columns of At
 				//1 ... select. Select in wino matrix At to use. Wino contains several matrices - no confusion.
-			Tensor * ATmA = winoTile(m_trans, 1, wino, at_rows, at_col, 1);
+			//Tensor * ATmA = winoTile(m_trans, 1, wino, at_rows, at_col, 1);
+			Tensor * ATmA = winoTile(&m_sum, 1, wino, at_rows, at_col, 1);
 			//delete [] m_trans;
 			// printf("U_wino last element ... amount feature maps: %d\n", U_wino[Z->size[0]-1].size[0]);
 
@@ -941,7 +923,7 @@ void convWinograd(Tensor * X, Tensor * U_wino , Tensor * B, Tensor * Z, int k_si
 					}
 				}	
 			}
-			//delete [] m_trans;
+			delete [] ATmA;
 		}	
 	}
 	delete tile;
@@ -954,7 +936,7 @@ void convWinograd(Tensor * X, Tensor * U_wino , Tensor * B, Tensor * Z, int k_si
 	for(int o=0; o < Z->size[0]; o++){
 		//height of channel in Z
 		for(int p = 0; p < Z->size[1]; p++){
-			//width in channel in Z
+		//width in channel in Z
 			for(int q=0; q < Z->size[2]; q++){
 				Z->data[o][p][q] += (B->data[0][0][o]);
 			}	
@@ -963,6 +945,7 @@ void convWinograd(Tensor * X, Tensor * U_wino , Tensor * B, Tensor * Z, int k_si
 	//printf("B added.\n");
 }
 	
+
 
 
 
